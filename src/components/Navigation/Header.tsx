@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 export const Header: React.FC = () => {
   return (
     <header className="h-16 bg-base-100 border-b border-base-300">
-      <div className="h-full px-4 flex items-center justify-between">
+      <div data-testid="header-container" className="h-full px-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/" className="text-xl font-bold">
             Bible App
@@ -29,6 +29,7 @@ export const Header: React.FC = () => {
               className="h-5 w-5"
               viewBox="0 0 20 20"
               fill="currentColor"
+              role="presentation"
             >
               <path
                 fillRule="evenodd"
@@ -43,6 +44,7 @@ export const Header: React.FC = () => {
               className="h-5 w-5"
               viewBox="0 0 20 20"
               fill="currentColor"
+              role="presentation"
             >
               <path
                 fillRule="evenodd"

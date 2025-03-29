@@ -1,41 +1,115 @@
-import { render, screen } from '@testing-library/react';
+import React from 'react';
+import { render, screen, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Header } from '../Header';
+import { vi, describe, it, expect } from 'vitest';
+
+interface NavigationLink {
+  name: RegExp;
+  href: string;
+  text: string;
+}
+
+const navigationLinks: NavigationLink[] = [
+  { name: /reading/i, href: '/reading', text: 'Reading' },
+  { name: /search/i, href: '/search', text: 'Search' },
+  { name: /bookmarks/i, href: '/bookmarks', text: 'Bookmarks' }
+];
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      {ui}
+    </BrowserRouter>
+  );
 };
 
-describe('Header', () => {
-  it('renders the app title', () => {
-    renderWithRouter(<Header />);
-    expect(screen.getByText('Bible App')).toBeInTheDocument();
+describe('Header Component', () => {
+  describe('Layout and Structure', () => {
+    it('renders with correct base styling', () => {
+      renderWithRouter(<Header />);
+      
+      const header = screen.getByRole('banner');
+      expect(header).toHaveClass('h-16', 'bg-base-100', 'border-b', 'border-base-300');
+      
+      const container = within(header).getByTestId('header-container');
+      expect(container).toHaveClass('h-full', 'px-4', 'flex', 'items-center', 'justify-between');
+    });
+
+    it('has responsive navigation layout', () => {
+      renderWithRouter(<Header />);
+      
+      const nav = screen.getByRole('navigation');
+      expect(nav).toHaveClass('hidden', 'md:flex', 'gap-4');
+    });
   });
 
-  it('renders navigation links', () => {
-    renderWithRouter(<Header />);
-    
-    expect(screen.getByText('Reading')).toBeInTheDocument();
-    expect(screen.getByText('Search')).toBeInTheDocument();
-    expect(screen.getByText('Bookmarks')).toBeInTheDocument();
+  describe('Brand and Navigation', () => {
+    it('renders app title with correct link and styling', () => {
+      renderWithRouter(<Header />);
+      
+      const titleLink = screen.getByRole('link', { name: /bible app/i });
+      expect(titleLink).toBeInTheDocument();
+      expect(titleLink).toHaveAttribute('href', '/');
+      expect(titleLink).toHaveClass('text-xl', 'font-bold');
+    });
+
+    it('renders all navigation links with correct attributes', () => {
+      renderWithRouter(<Header />);
+      
+      navigationLinks.forEach(link => {
+        const linkElement = screen.getByRole('link', { name: link.name });
+        expect(linkElement).toBeInTheDocument();
+        expect(linkElement).toHaveAttribute('href', link.href);
+        expect(linkElement).toHaveClass('btn', 'btn-ghost', 'btn-sm');
+        expect(linkElement).toHaveTextContent(link.text);
+      });
+    });
+
+    it('maintains correct navigation order', () => {
+      renderWithRouter(<Header />);
+      
+      const navItems = screen.getAllByRole('link');
+      expect(navItems).toHaveLength(4); // Home + 3 nav links
+      
+      expect(navItems[0]).toHaveTextContent(/bible app/i);
+      navigationLinks.forEach((link, index) => {
+        expect(navItems[index + 1]).toHaveTextContent(link.text);
+      });
+    });
   });
 
-  it('renders user action buttons', () => {
-    renderWithRouter(<Header />);
-    
-    expect(screen.getByLabelText('Toggle theme')).toBeInTheDocument();
-    expect(screen.getByLabelText('User menu')).toBeInTheDocument();
-  });
+  describe('Action Buttons', () => {
+    it('renders theme toggle button with correct attributes', () => {
+      renderWithRouter(<Header />);
+      
+      const themeButton = screen.getByRole('button', { name: /toggle theme/i });
+      expect(themeButton).toBeInTheDocument();
+      expect(themeButton).toHaveClass('btn', 'btn-ghost', 'btn-circle');
+      
+      const themeIcon = within(themeButton).getByRole('presentation');
+      expect(themeIcon).toHaveClass('h-5', 'w-5');
+    });
 
-  it('navigation links have correct hrefs', () => {
-    renderWithRouter(<Header />);
-    
-    const readingLink = screen.getByText('Reading').closest('a');
-    const searchLink = screen.getByText('Search').closest('a');
-    const bookmarksLink = screen.getByText('Bookmarks').closest('a');
+    it('renders user menu button with correct attributes', () => {
+      renderWithRouter(<Header />);
+      
+      const userButton = screen.getByRole('button', { name: /user menu/i });
+      expect(userButton).toBeInTheDocument();
+      expect(userButton).toHaveClass('btn', 'btn-ghost', 'btn-circle');
+      
+      const userIcon = within(userButton).getByRole('presentation');
+      expect(userIcon).toHaveClass('h-5', 'w-5');
+    });
 
-    expect(readingLink).toHaveAttribute('href', '/reading');
-    expect(searchLink).toHaveAttribute('href', '/search');
-    expect(bookmarksLink).toHaveAttribute('href', '/bookmarks');
+    it('renders action buttons in correct order', () => {
+      renderWithRouter(<Header />);
+      
+      const buttons = screen.getAllByRole('button');
+      expect(buttons).toHaveLength(2);
+      
+      expect(buttons[0]).toHaveAccessibleName(/toggle theme/i);
+      expect(buttons[1]).toHaveAccessibleName(/user menu/i);
+    });
   });
 }); 

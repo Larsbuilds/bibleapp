@@ -1,95 +1,252 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import React from 'react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { Sidebar } from '../Sidebar';
-import { BibleProvider } from '@/contexts/BibleContext';
-import { server } from '@/test-utils/mocks/server';
-import { http, HttpResponse } from 'msw';
+import { BibleProvider, useBible } from '@/contexts/BibleContext';
+import { bibleService } from '@/services/bibleService';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-const mockBooks = ['Genesis', 'Exodus', 'Leviticus'];
-const mockChapterCount = 50;
+// Mock the bibleService
+vi.mock('@/services/bibleService', () => ({
+  bibleService: {
+    getBooks: vi.fn(),
+    getChapterCount: vi.fn(),
+  },
+}));
 
-// Add handlers for books and chapter count
-server.use(
-  http.get('/api/bible/books', () => {
-    return HttpResponse.json(mockBooks);
-  }),
-  http.get('/api/bible/books/:book/chapters', () => {
-    return HttpResponse.json(mockChapterCount);
-  })
-);
-
-const renderWithProviders = (ui: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      <BibleProvider>{ui}</BibleProvider>
-    </BrowserRouter>
-  );
-};
+// Mock the useBible hook
+vi.mock('@/contexts/BibleContext', async () => {
+  const actual = await vi.importActual('@/contexts/BibleContext');
+  return {
+    ...actual,
+    useBible: vi.fn(() => ({
+      currentChapter: null,
+      currentVerse: null,
+      isLoading: false,
+      error: null,
+      highlightedVerses: [],
+      bookmarkedVerses: [],
+      setCurrentChapter: vi.fn(),
+      setCurrentVerse: vi.fn(),
+      loadChapter: vi.fn(),
+      highlightVerse: vi.fn(),
+      unhighlightVerse: vi.fn(),
+      bookmarkVerse: vi.fn(),
+      unbookmarkVerse: vi.fn(),
+    })),
+  };
+});
 
 describe('Sidebar', () => {
-  it('renders the books section', () => {
-    renderWithProviders(<Sidebar />);
-    expect(screen.getByText('Books')).toBeInTheDocument();
+  const mockBooks = ['Genesis', 'Exodus', 'Leviticus'];
+  const mockChapterCount = 50;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it('loads and displays books', async () => {
-    renderWithProviders(<Sidebar />);
-    
-    await waitFor(() => {
-      mockBooks.forEach(book => {
-        expect(screen.getByText(book)).toBeInTheDocument();
+  describe('Initial Rendering', () => {
+    it('renders sidebar with title and proper ARIA role', () => {
+      render(<Sidebar />);
+      const sidebar = screen.getByRole('complementary');
+      expect(sidebar).toBeInTheDocument();
+      expect(screen.getByText('Books')).toBeInTheDocument();
+    });
+
+    it('applies custom className when provided', () => {
+      render(<Sidebar className="custom-class" />);
+      expect(screen.getByRole('complementary')).toHaveClass('custom-class');
+    });
+  });
+
+  describe('Books Loading', () => {
+    it('shows loading state while fetching books', async () => {
+      (bibleService.getBooks as jest.Mock).mockImplementation(() => new Promise(() => {}));
+      render(<Sidebar />);
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
+    it('loads and displays books list', async () => {
+      (bibleService.getBooks as jest.Mock).mockResolvedValue(mockBooks);
+
+      render(<Sidebar />);
+
+      await waitFor(() => {
+        mockBooks.forEach(book => {
+          expect(screen.getByRole('button', { name: book })).toBeInTheDocument();
+        });
+      });
+    });
+
+    it('handles error when loading books', async () => {
+      const errorMessage = 'Failed to load books';
+      (bibleService.getBooks as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      render(<Sidebar />);
+
+      await waitFor(() => {
+        expect(screen.getByText(errorMessage)).toBeInTheDocument();
       });
     });
   });
 
-  it('shows chapter buttons when a book is selected', async () => {
-    renderWithProviders(<Sidebar />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Genesis')).toBeInTheDocument();
+  describe('Book Selection', () => {
+    beforeEach(() => {
+      (bibleService.getBooks as jest.Mock).mockResolvedValue(mockBooks);
+      (bibleService.getChapterCount as jest.Mock).mockResolvedValue(mockChapterCount);
     });
 
-    fireEvent.click(screen.getByText('Genesis'));
+    it('handles book selection and shows loading state for chapters', async () => {
+      (bibleService.getChapterCount as jest.Mock).mockImplementation(() => new Promise(() => {}));
+      render(<Sidebar />);
 
-    await waitFor(() => {
-      // Check if chapter buttons are rendered
-      expect(screen.getByText('1')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument();
-      expect(screen.getByText('3')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Genesis')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Genesis'));
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
+    it('loads and displays chapter buttons when book is selected', async () => {
+      render(<Sidebar />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Genesis')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Genesis'));
+
+      await waitFor(() => {
+        for (let i = 1; i <= 5; i++) { // Test first few chapters
+          expect(screen.getByRole('button', { name: `Chapter ${i}` })).toBeInTheDocument();
+        }
+      });
+    });
+
+    it('handles error when loading chapter count', async () => {
+      const errorMessage = 'Failed to load chapter count';
+      (bibleService.getChapterCount as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      render(<Sidebar />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Genesis')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Genesis'));
+
+      await waitFor(() => {
+        expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      });
+    });
+
+    it('updates selected book visual state', async () => {
+      render(<Sidebar />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Genesis')).toBeInTheDocument();
+      });
+
+      const bookButton = screen.getByText('Genesis');
+      fireEvent.click(bookButton);
+
+      expect(bookButton).toHaveClass('bg-primary');
+      expect(bookButton).toHaveClass('text-primary-content');
     });
   });
 
-  it('applies correct styling to selected book', async () => {
-    renderWithProviders(<Sidebar />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Genesis')).toBeInTheDocument();
+  describe('Chapter Selection', () => {
+    const mockLoadChapter = vi.fn();
+
+    beforeEach(() => {
+      (bibleService.getBooks as jest.Mock).mockResolvedValue(mockBooks);
+      (bibleService.getChapterCount as jest.Mock).mockResolvedValue(mockChapterCount);
+      vi.mocked(useBible).mockReturnValue({
+        currentChapter: null,
+        currentVerse: null,
+        isLoading: false,
+        error: null,
+        highlightedVerses: [],
+        bookmarkedVerses: [],
+        setCurrentChapter: vi.fn(),
+        setCurrentVerse: vi.fn(),
+        loadChapter: mockLoadChapter,
+        highlightVerse: vi.fn(),
+        unhighlightVerse: vi.fn(),
+        bookmarkVerse: vi.fn(),
+        unbookmarkVerse: vi.fn(),
+      });
     });
 
-    const genesisButton = screen.getByText('Genesis');
-    fireEvent.click(genesisButton);
+    it('calls loadChapter when chapter is selected', async () => {
+      render(<Sidebar />);
 
-    expect(genesisButton.closest('button')).toHaveClass('bg-primary');
+      await waitFor(() => {
+        expect(screen.getByText('Genesis')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Genesis'));
+
+      await waitFor(() => {
+        expect(screen.getByText('1')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('1'));
+      expect(mockLoadChapter).toHaveBeenCalledWith('Genesis', 1);
+    });
+
+    it('handles error when loading chapter', async () => {
+      const errorMessage = 'Failed to load chapter';
+      mockLoadChapter.mockRejectedValue(new Error(errorMessage));
+
+      render(<Sidebar />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Genesis')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Genesis'));
+      await waitFor(() => {
+        expect(screen.getByText('1')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('1'));
+
+      await waitFor(() => {
+        expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      });
+    });
   });
 
-  it('handles API errors gracefully', async () => {
-    // Override the handler to simulate an error
-    server.use(
-      http.get('/api/bible/books', () => {
-        return new HttpResponse(null, { status: 500 });
-      })
-    );
-
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    renderWithProviders(<Sidebar />);
-
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to load books:',
-        expect.any(Error)
-      );
+  describe('Accessibility', () => {
+    beforeEach(() => {
+      (bibleService.getBooks as jest.Mock).mockResolvedValue(mockBooks);
+      (bibleService.getChapterCount as jest.Mock).mockResolvedValue(mockChapterCount);
     });
 
-    consoleSpy.mockRestore();
+    it('has proper heading hierarchy', () => {
+      render(<Sidebar />);
+      expect(screen.getByRole('heading', { name: 'Books', level: 2 })).toBeInTheDocument();
+    });
+
+    it('provides accessible buttons for books and chapters', async () => {
+      render(<Sidebar />);
+
+      await waitFor(() => {
+        mockBooks.forEach(book => {
+          expect(screen.getByRole('button', { name: book })).toHaveAttribute('aria-label', book);
+        });
+      });
+
+      fireEvent.click(screen.getByText('Genesis'));
+
+      await waitFor(() => {
+        for (let i = 1; i <= 5; i++) {
+          const chapterButton = screen.getByRole('button', { name: i.toString() });
+          expect(chapterButton).toHaveAttribute('aria-label', `Chapter ${i}`);
+        }
+      });
+    });
   });
 }); 

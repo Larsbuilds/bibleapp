@@ -1,67 +1,133 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Verse, Chapter, BibleReference } from '@/types/bible';
-import { bibleService } from '@/services/bibleService';
+import { bibleService } from '../services/bibleService';
+
+export interface Verse {
+  id: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  reference: string;
+  text: string;
+  translation: string;
+}
+
+export interface Chapter {
+  book: string;
+  chapter: number;
+  verses: Verse[];
+}
 
 interface BibleContextType {
-  currentVerse: Verse | null;
   currentChapter: Chapter | null;
+  currentVerse: Verse | null;
   isLoading: boolean;
   error: string | null;
-  setCurrentVerse: (reference: BibleReference) => Promise<void>;
-  setCurrentChapter: (book: string, chapter: number) => Promise<void>;
-  clearError: () => void;
+  highlightedVerses: string[];
+  bookmarkedVerses: string[];
+  setCurrentChapter: (chapter: Chapter | null) => Promise<void>;
+  setCurrentVerse: (verse: Verse | null) => Promise<void>;
+  loadChapter: (book: string, chapter: number) => Promise<void>;
+  highlightVerse: (verseId: string) => Promise<void>;
+  unhighlightVerse: (verseId: string) => Promise<void>;
+  bookmarkVerse: (verseId: string) => Promise<void>;
+  unbookmarkVerse: (verseId: string) => Promise<void>;
 }
 
 const BibleContext = createContext<BibleContextType | undefined>(undefined);
 
-export const BibleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentVerse, setCurrentVerse] = useState<Verse | null>(null);
-  const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+interface BibleProviderProps {
+  children: React.ReactNode;
+  value?: Partial<BibleContextType>;
+}
 
-  const fetchVerse = useCallback(async (reference: BibleReference) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const verse = await bibleService.getVerse(reference);
-      setCurrentVerse(verse);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch verse');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+export const BibleProvider: React.FC<BibleProviderProps> = ({ children, value: testValue }) => {
+  const [state, setState] = useState({
+    currentChapter: null as Chapter | null,
+    currentVerse: null as Verse | null,
+    isLoading: false,
+    error: null as string | null,
+    highlightedVerses: [] as string[],
+    bookmarkedVerses: [] as string[],
+  });
 
-  const fetchChapter = useCallback(async (book: string, chapter: number) => {
-    setIsLoading(true);
-    setError(null);
+  const loadChapter = useCallback(async (book: string, chapter: number) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
       const chapterData = await bibleService.getChapter(book, chapter);
-      setCurrentChapter(chapterData);
+      setState(prev => ({
+        ...prev,
+        currentChapter: chapterData,
+        currentVerse: null,
+        isLoading: false,
+        error: null,
+      }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch chapter');
-    } finally {
-      setIsLoading(false);
+      setState(prev => ({
+        ...prev,
+        currentChapter: null,
+        currentVerse: null,
+        isLoading: false,
+        error: err instanceof Error ? err.message : 'Failed to load chapter',
+      }));
     }
   }, []);
 
-  const clearError = useCallback(() => {
-    setError(null);
+  const setCurrentChapter = useCallback(async (chapter: Chapter | null) => {
+    setState(prev => ({
+      ...prev,
+      currentChapter: chapter,
+      currentVerse: null,
+    }));
   }, []);
 
+  const setCurrentVerse = useCallback(async (verse: Verse | null) => {
+    setState(prev => ({
+      ...prev,
+      currentVerse: verse,
+    }));
+  }, []);
+
+  const highlightVerse = useCallback(async (verseId: string) => {
+    setState(prev => ({
+      ...prev,
+      highlightedVerses: [...prev.highlightedVerses, verseId],
+    }));
+  }, []);
+
+  const unhighlightVerse = useCallback(async (verseId: string) => {
+    setState(prev => ({
+      ...prev,
+      highlightedVerses: prev.highlightedVerses.filter(id => id !== verseId),
+    }));
+  }, []);
+
+  const bookmarkVerse = useCallback(async (verseId: string) => {
+    setState(prev => ({
+      ...prev,
+      bookmarkedVerses: [...prev.bookmarkedVerses, verseId],
+    }));
+  }, []);
+
+  const unbookmarkVerse = useCallback(async (verseId: string) => {
+    setState(prev => ({
+      ...prev,
+      bookmarkedVerses: prev.bookmarkedVerses.filter(id => id !== verseId),
+    }));
+  }, []);
+
+  const contextValue = {
+    ...state,
+    setCurrentChapter: testValue?.setCurrentChapter ?? setCurrentChapter,
+    setCurrentVerse: testValue?.setCurrentVerse ?? setCurrentVerse,
+    loadChapter: testValue?.loadChapter ?? loadChapter,
+    highlightVerse: testValue?.highlightVerse ?? highlightVerse,
+    unhighlightVerse: testValue?.unhighlightVerse ?? unhighlightVerse,
+    bookmarkVerse: testValue?.bookmarkVerse ?? bookmarkVerse,
+    unbookmarkVerse: testValue?.unbookmarkVerse ?? unbookmarkVerse,
+  };
+
   return (
-    <BibleContext.Provider
-      value={{
-        currentVerse,
-        currentChapter,
-        isLoading,
-        error,
-        setCurrentVerse: fetchVerse,
-        setCurrentChapter: fetchChapter,
-        clearError,
-      }}
-    >
+    <BibleContext.Provider value={contextValue}>
       {children}
     </BibleContext.Provider>
   );

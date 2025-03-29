@@ -1,71 +1,176 @@
+/// <reference types="vitest" />
 import { renderHook, act } from '@testing-library/react';
-import { BibleProvider, useBible } from '../BibleContext';
-import { server } from '@/test-utils/mocks/server';
-import { http, HttpResponse } from 'msw';
+import { BibleProvider, useBible } from '@/contexts/BibleContext';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <BibleProvider>{children}</BibleProvider>
-);
+// Mock the bibleService module
+vi.mock('@/services/bibleService', () => ({
+  bibleService: {
+    getChapter: vi.fn(),
+    getVerse: vi.fn(),
+    searchVerses: vi.fn(),
+  },
+}));
+
+// Import after mocking
+import { bibleService } from '@/services/bibleService';
 
 describe('BibleContext', () => {
-  it('provides initial state', () => {
-    const { result } = renderHook(() => useBible(), { wrapper });
+  const mockVerse = {
+    id: 'john-3-16',
+    book: 'John',
+    chapter: 3,
+    verse: 16,
+    reference: 'John 3:16',
+    text: 'For God so loved the world...',
+    translation: 'NIV'
+  };
 
+  const mockChapter = {
+    book: 'John',
+    chapter: 3,
+    verses: [mockVerse]
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('initializes with default values', () => {
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
+    });
+
+    expect(result.current.currentChapter).toBeNull();
     expect(result.current.currentVerse).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(result.current.highlightedVerses).toEqual([]);
+    expect(result.current.bookmarkedVerses).toEqual([]);
+  });
+
+  it('loads chapter successfully', async () => {
+    vi.mocked(bibleService.getChapter).mockResolvedValueOnce(mockChapter);
+
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
+    });
+
+    await act(async () => {
+      await result.current.loadChapter('John', 3);
+    });
+
+    expect(bibleService.getChapter).toHaveBeenCalledWith('John', 3);
+    expect(result.current.currentChapter).toEqual(mockChapter);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('handles chapter loading error', async () => {
+    const error = new Error('Failed to load chapter');
+    vi.mocked(bibleService.getChapter).mockRejectedValueOnce(error);
+
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
+    });
+
+    await act(async () => {
+      await result.current.loadChapter('John', 3);
+    });
+
+    expect(bibleService.getChapter).toHaveBeenCalledWith('John', 3);
     expect(result.current.currentChapter).toBeNull();
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.error).toBeNull();
+    expect(result.current.error).toBe('Failed to load chapter');
   });
 
-  it('fetches and sets a verse', async () => {
-    const { result } = renderHook(() => useBible(), { wrapper });
-
-    await act(async () => {
-      await result.current.setCurrentVerse({ book: 'John', chapter: 3, verse: 16 });
+  it('manages verse highlighting', () => {
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
     });
 
-    expect(result.current.currentVerse).toBeDefined();
-    expect(result.current.currentVerse?.reference).toBe('John 3:16');
+    act(() => {
+      result.current.highlightVerse('john-3-16');
+    });
+
+    expect(result.current.highlightedVerses).toContain('john-3-16');
+
+    act(() => {
+      result.current.unhighlightVerse('john-3-16');
+    });
+
+    expect(result.current.highlightedVerses).not.toContain('john-3-16');
+  });
+
+  it('manages verse bookmarking', () => {
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
+    });
+
+    act(() => {
+      result.current.bookmarkVerse('john-3-16');
+    });
+
+    expect(result.current.bookmarkedVerses).toContain('john-3-16');
+
+    act(() => {
+      result.current.unbookmarkVerse('john-3-16');
+    });
+
+    expect(result.current.bookmarkedVerses).not.toContain('john-3-16');
+  });
+
+  it('sets current verse', () => {
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
+    });
+
+    act(() => {
+      result.current.setCurrentVerse(mockVerse);
+    });
+
+    expect(result.current.currentVerse).toEqual(mockVerse);
+  });
+
+  it('sets current chapter', () => {
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
+    });
+
+    act(() => {
+      result.current.setCurrentChapter(mockChapter);
+    });
+
+    expect(result.current.currentChapter).toEqual(mockChapter);
+  });
+
+  it('handles loading state during chapter load', async () => {
+    let resolvePromise: (value: unknown) => void;
+    const loadingPromise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    vi.mocked(bibleService.getChapter).mockImplementationOnce(() => loadingPromise as Promise<any>);
+
+    const { result } = renderHook(() => useBible(), {
+      wrapper: ({ children }) => <BibleProvider>{children}</BibleProvider>
+    });
+
+    let loadChapterPromise: Promise<void>;
+    act(() => {
+      loadChapterPromise = result.current.loadChapter('John', 3);
+    });
+
+    // Loading state should be true immediately after starting
+    expect(result.current.isLoading).toBe(true);
+
+    // Resolve the loading
+    await act(async () => {
+      resolvePromise!(mockChapter);
+      await loadChapterPromise;
+    });
+
     expect(result.current.isLoading).toBe(false);
-  });
-
-  it('fetches and sets a chapter', async () => {
-    const { result } = renderHook(() => useBible(), { wrapper });
-
-    await act(async () => {
-      await result.current.setCurrentChapter('John', 3);
-    });
-
-    expect(result.current.currentChapter).toBeDefined();
-    expect(result.current.currentChapter?.book).toBe('John');
-    expect(result.current.currentChapter?.chapter).toBe(3);
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it('handles errors', async () => {
-    server.use(
-      http.get('/api/bible/verse/:reference', () => {
-        return new HttpResponse(null, { status: 500 });
-      })
-    );
-
-    const { result } = renderHook(() => useBible(), { wrapper });
-
-    await act(async () => {
-      await result.current.setCurrentVerse({ book: 'John', chapter: 3, verse: 16 });
-    });
-
-    expect(result.current.error).toBe('Failed to fetch verse');
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it('clears error', async () => {
-    const { result } = renderHook(() => useBible(), { wrapper });
-
-    await act(async () => {
-      result.current.clearError();
-    });
-
-    expect(result.current.error).toBeNull();
+    expect(result.current.currentChapter).toEqual(mockChapter);
   });
 }); 

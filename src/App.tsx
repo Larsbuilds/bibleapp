@@ -5,24 +5,27 @@ import { ReadingView } from '@/components/ReadingView/ReadingView';
 import { SearchView } from '@/components/SearchView/SearchView';
 import { BibleProvider } from '@/contexts/BibleContext';
 import { SearchProvider } from '@/contexts/SearchContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary/ErrorBoundary';
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <BibleProvider>
-        <SearchProvider>
-          <Routes>
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Navigate to="/reading" replace />} />
-              <Route path="reading" element={<ReadingView />} />
-              <Route path="search" element={<SearchView />} />
-              {/* Add more routes as we implement features */}
-              <Route path="*" element={<Navigate to="/reading" replace />} />
-            </Route>
-          </Routes>
-        </SearchProvider>
-      </BibleProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <BibleProvider>
+          <SearchProvider>
+            <Routes>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Navigate to="/reading" replace />} />
+                <Route path="reading" element={<ReadingView />} />
+                <Route path="search" element={<SearchView />} />
+                {/* Add more routes as we implement features */}
+                <Route path="*" element={<Navigate to="/reading" replace />} />
+              </Route>
+            </Routes>
+          </SearchProvider>
+        </BibleProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 

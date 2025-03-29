@@ -3,12 +3,24 @@ import { useBible } from '@/contexts/BibleContext';
 import { BibleVerse } from '@/components/BibleVerse/BibleVerse';
 
 export const ReadingView: React.FC = () => {
-  const { currentChapter, isLoading, error } = useBible();
+  const { currentChapter, isLoading, error, loadChapter } = useBible();
+
+  const handlePreviousChapter = () => {
+    if (currentChapter) {
+      loadChapter(currentChapter.book, currentChapter.chapter - 1);
+    }
+  };
+
+  const handleNextChapter = () => {
+    if (currentChapter) {
+      loadChapter(currentChapter.book, currentChapter.chapter + 1);
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="loading loading-spinner loading-lg"></div>
+        <div className="loading loading-spinner loading-lg" role="progressbar"></div>
       </div>
     );
   }
@@ -56,7 +68,11 @@ export const ReadingView: React.FC = () => {
           {currentChapter.book} Chapter {currentChapter.chapter}
         </h1>
         <div className="flex gap-2">
-          <button className="btn btn-ghost btn-sm" aria-label="Previous chapter">
+          <button
+            className="btn btn-ghost btn-sm"
+            aria-label="Previous chapter"
+            onClick={handlePreviousChapter}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5"
@@ -70,7 +86,11 @@ export const ReadingView: React.FC = () => {
               />
             </svg>
           </button>
-          <button className="btn btn-ghost btn-sm" aria-label="Next chapter">
+          <button
+            className="btn btn-ghost btn-sm"
+            aria-label="Next chapter"
+            onClick={handleNextChapter}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5"
@@ -92,14 +112,6 @@ export const ReadingView: React.FC = () => {
           <BibleVerse
             key={verse.id}
             verse={verse}
-            onHighlight={(verseId) => {
-              // TODO: Implement highlighting
-              console.log('Highlight verse:', verseId);
-            }}
-            onBookmark={(verseId) => {
-              // TODO: Implement bookmarking
-              console.log('Bookmark verse:', verseId);
-            }}
           />
         ))}
       </div>
