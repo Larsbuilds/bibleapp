@@ -21,10 +21,13 @@ export interface BibleReference {
 }
 
 export interface SearchResult {
-  verses: Verse[];
-  total: number;
-  page: number;
-  pageSize: number;
+  reference: string;
+  text: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  translation: string;
+  relevance: number;
 }
 
 export interface ReadingPlan {

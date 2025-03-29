@@ -1,138 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { useSearch } from '@/contexts/SearchContext';
-import { BibleVerse } from '@/components/BibleVerse/BibleVerse';
-import { searchService } from '@/services/searchService';
+import React, { useState } from 'react';
+import { useSearch } from '../../hooks/useSearch';
+import { SearchResult } from '../../types/search';
 
 export const SearchView: React.FC = () => {
-  const { searchResults, searchHistory, isLoading, error, search, searchByReference } = useSearch();
+  const { searchResults, isLoading, error, performSearch, searchHistory } = useSearch();
   const [query, setQuery] = useState('');
   const [isReferenceSearch, setIsReferenceSearch] = useState(false);
 
-  useEffect(() => {
-    const loadSearchHistory = async () => {
-      try {
-        const history = await searchService.getSearchHistory();
-        // Update history in context
-      } catch (error) {
-        console.error('Failed to load search history:', error);
-      }
-    };
-    loadSearchHistory();
-  }, []);
-
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-
-    if (isReferenceSearch) {
-      await searchByReference(query);
-    } else {
-      await search(query);
-    }
+    await performSearch(query);
   };
 
-  const handleHistoryClick = (historyQuery: string) => {
+  const handleHistoryClick = async (historyQuery: string) => {
     setQuery(historyQuery);
     setIsReferenceSearch(false);
-    search(historyQuery);
+    await performSearch(historyQuery);
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col gap-4">
-        <form onSubmit={handleSearch} className="flex gap-4">
-          <div className="flex-1">
+    <div className="container mx-auto px-4 py-8">
+      <form onSubmit={handleSubmit} className="mb-8">
+        <div className="flex gap-4">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search Bible verses..."
+            className="flex-1 input input-bordered"
+          />
+          <button type="submit" className="btn btn-primary" disabled={isLoading}>
+            {isLoading ? 'Searching...' : 'Search'}
+          </button>
+        </div>
+        <div className="mt-2">
+          <label className="label cursor-pointer">
+            <span className="label-text">Search by reference</span>
             <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search verses or enter a reference..."
-              className="input input-bordered w-full"
+              type="checkbox"
+              checked={isReferenceSearch}
+              onChange={(e) => setIsReferenceSearch(e.target.checked)}
+              className="checkbox"
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="label cursor-pointer gap-2">
-              <span className="label-text">Reference</span>
-              <input
-                type="checkbox"
-                className="toggle toggle-primary"
-                checked={isReferenceSearch}
-                onChange={(e) => setIsReferenceSearch(e.target.checked)}
-              />
-            </label>
-            <button type="submit" className="btn btn-primary" disabled={isLoading}>
-              {isLoading ? (
-                <span className="loading loading-spinner loading-sm"></span>
-              ) : (
-                'Search'
-              )}
-            </button>
-          </div>
-        </form>
+          </label>
+        </div>
+      </form>
 
-        {error && (
-          <div className="alert alert-error">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current shrink-0 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span>{error}</span>
-          </div>
-        )}
+      {error && (
+        <div className="alert alert-error mb-4">
+          <span>{error}</span>
+        </div>
+      )}
 
-        {searchHistory.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            <span className="text-sm text-base-content/70">Recent searches:</span>
-            {searchHistory.map((historyQuery) => (
-              <button
-                key={historyQuery}
-                onClick={() => handleHistoryClick(historyQuery)}
-                className="btn btn-ghost btn-xs"
-              >
-                {historyQuery}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {searchResults && (
+      {searchResults.length > 0 && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">
-              Found {searchResults.total} results
-            </h2>
-            {searchResults.page > 1 && (
-              <button className="btn btn-ghost btn-sm">Previous</button>
-            )}
-            {searchResults.page * searchResults.pageSize < searchResults.total && (
-              <button className="btn btn-ghost btn-sm">Next</button>
-            )}
-          </div>
+          <h2 className="text-2xl font-bold">Search Results</h2>
+          {searchResults.map((result: SearchResult, index: number) => (
+            <div key={`${result.reference}-${index}`} className="card bg-base-100 shadow-xl">
+              <div className="card-body">
+                <h3 className="card-title">{result.reference}</h3>
+                <p>{result.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-          <div className="space-y-4">
-            {searchResults.verses.map((verse) => (
-              <BibleVerse
-                key={verse.id}
-                verse={verse}
-                onHighlight={(verseId) => {
-                  // TODO: Implement highlighting
-                  console.log('Highlight verse:', verseId);
-                }}
-                onBookmark={(verseId) => {
-                  // TODO: Implement bookmarking
-                  console.log('Bookmark verse:', verseId);
-                }}
-              />
+      {searchHistory.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Search History</h2>
+          <div className="space-y-2">
+            {searchHistory.map((item: string) => (
+              <button
+                key={item}
+                onClick={() => handleHistoryClick(item)}
+                className="btn btn-ghost w-full justify-start"
+              >
+                {item}
+              </button>
             ))}
           </div>
         </div>

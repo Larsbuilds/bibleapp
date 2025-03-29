@@ -11,7 +11,8 @@
     "dev": "vite",
     "build": "tsc -b tsconfig.build.json && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:deploy": "npm run lint && npm run build && npm run preview"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.70.0",

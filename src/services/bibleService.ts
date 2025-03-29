@@ -56,14 +56,40 @@ export const bibleService = {
     };
   },
 
-  async search(query: string, page: number = 1, pageSize: number = 20): Promise<SearchResult> {
-    // Note: ESV API doesn't support full-text search directly
-    // We'll need to implement a different search solution
-    throw new Error('Search functionality not available with ESV API');
+  async search(query: string): Promise<SearchResult> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}?q=${query}&include-passage-references=true`,
+        {
+          headers: {
+            'Authorization': `Token ${API_KEY}`
+          }
+        }
+      );
+      if (!response.ok) {
+        throw new Error('Failed to search verses');
+      }
+      const data = await response.json();
+      const reference = data.query || '';
+      const [book, chapterVerse] = reference.split(' ');
+      const [chapter, verse] = (chapterVerse || '').split(':').map(Number);
+      
+      return {
+        reference,
+        text: data.passages[0] || '',
+        book,
+        chapter: chapter || 0,
+        verse: verse || 0,
+        translation: 'ESV',
+        relevance: 1
+      };
+    } catch (error) {
+      console.error('Error searching verses:', error);
+      throw error;
+    }
   },
 
   async getBooks(): Promise<string[]> {
-    // Return a static list of Bible books
     return [
       'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
       'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
@@ -85,7 +111,6 @@ export const bibleService = {
   },
 
   async getChapterCount(book: string): Promise<number> {
-    // Return static chapter counts for each book
     const chapterCounts: { [key: string]: number } = {
       'Genesis': 50, 'Exodus': 40, 'Leviticus': 27, 'Numbers': 36,
       'Deuteronomy': 34, 'Joshua': 24, 'Judges': 21, 'Ruth': 4,
@@ -108,5 +133,18 @@ export const bibleService = {
       '3 John': 1, 'Jude': 1, 'Revelation': 22
     };
     return chapterCounts[book] || 0;
+  },
+
+  async getVersesByChapter(book: string, chapter: number): Promise<Verse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/verses/${book}/${chapter}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch verses');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching verses:', error);
+      throw error;
+    }
   }
 }; 
