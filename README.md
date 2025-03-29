@@ -1,3 +1,78 @@
+# Bible App
+
+A modern Bible reading application built with React, TypeScript, and Tailwind CSS.
+
+## Features
+
+- Bible reading interface
+- Search functionality
+- Bookmarking system
+- Dark/Light theme
+- Responsive design
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm (v9 or higher)
+- ESV Bible API key
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/Larsbuilds/bibleapp.git
+cd bibleapp
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Create a `.env` file in the root directory and add your ESV Bible API key:
+```bash
+VITE_ESV_API_KEY=your_api_key_here
+```
+
+4. Start the development server:
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:5173`.
+
+## Deployment
+
+### Netlify
+
+1. Push your code to GitHub
+2. Sign up/Login to [Netlify](https://www.netlify.com/)
+3. Click "New site from Git"
+4. Choose GitHub and select your repository
+5. Configure the build settings:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+6. Add your environment variables in Netlify's site settings
+7. Click "Deploy site"
+
+## Environment Variables
+
+- `VITE_ESV_API_KEY`: Your ESV Bible API key (required)
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
