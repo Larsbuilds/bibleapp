@@ -30,6 +30,6 @@
       "@features/*": ["src/features/*"]
     }
   },
-  "include": ["src", "__tests__"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src"],
+  "references": []
 }
