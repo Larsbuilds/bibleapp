@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useBible } from '@/contexts/BibleContext';
 import { bibleService } from '@/services/bibleService';
+import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
   className?: string;
@@ -10,7 +11,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
   const [books, setBooks] = useState<string[]>([]);
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
   const [chapterCount, setChapterCount] = useState<number>(0);
-  const { setCurrentChapter } = useBible();
+  const { setCurrentChapter, setCurrentVerse } = useBible();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadBooks = async () => {
@@ -42,9 +44,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
     setSelectedBook(book);
   };
 
-  const handleChapterSelect = (chapter: number) => {
+  const handleChapterSelect = async (chapter: number) => {
     if (selectedBook) {
-      setCurrentChapter(selectedBook, chapter);
+      try {
+        await setCurrentChapter(selectedBook, chapter);
+        await setCurrentVerse({ book: selectedBook, chapter, verse: 1 });
+        navigate('/reading');
+      } catch (error) {
+        console.error('Error navigating to chapter:', error);
+      }
     }
   };
 

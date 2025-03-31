@@ -1,0 +1,47 @@
+redirectsOrigin = "config"
+plugins = []
+headers = []
+
+[dev]
+command = "npm run dev"
+port = 5173.0
+targetPort = 5173.0
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/larstischer/Documents/GitHub/Bibleapp/dist"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "npm run build"
+base = "/Users/larstischer/Documents/GitHub/Bibleapp"
+
+[build.environment]
+NODE_VERSION = "18"
+NPM_VERSION = "9"
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

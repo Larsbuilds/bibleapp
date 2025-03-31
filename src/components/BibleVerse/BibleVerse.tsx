@@ -1,16 +1,30 @@
 import React from 'react';
 import { Verse } from '@/types/bible';
 import { useBible } from '@/contexts/BibleContext';
+import { useBookmarks } from '@/contexts/BookmarkContext';
 
 interface BibleVerseProps {
   verse: Verse;
   onHighlight?: (verseId: string) => void;
-  onBookmark?: (verseId: string) => void;
 }
 
-export const BibleVerse: React.FC<BibleVerseProps> = ({ verse, onHighlight, onBookmark }) => {
+export const BibleVerse: React.FC<BibleVerseProps> = ({ verse, onHighlight }) => {
   const { currentVerse } = useBible();
+  const { isBookmarked, addBookmark, removeBookmark } = useBookmarks();
   const isCurrentVerse = currentVerse?.id === verse.id;
+  const bookmarked = isBookmarked(verse.id);
+
+  const handleBookmark = async () => {
+    try {
+      if (bookmarked) {
+        const bookmark = await removeBookmark(verse.id);
+      } else {
+        await addBookmark(verse.id);
+      }
+    } catch (err) {
+      console.error('Error toggling bookmark:', err);
+    }
+  };
 
   return (
     <div
@@ -40,9 +54,9 @@ export const BibleVerse: React.FC<BibleVerseProps> = ({ verse, onHighlight, onBo
             </svg>
           </button>
           <button
-            onClick={() => onBookmark?.(verse.id)}
-            className="btn btn-ghost btn-sm"
-            aria-label="Bookmark verse"
+            onClick={handleBookmark}
+            className={`btn btn-ghost btn-sm ${bookmarked ? 'text-primary' : ''}`}
+            aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark verse'}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

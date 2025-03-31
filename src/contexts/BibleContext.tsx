@@ -67,10 +67,10 @@ export const BibleProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-export const useBible = () => {
+export function useBible() {
   const context = useContext(BibleContext);
   if (context === undefined) {
     throw new Error('useBible must be used within a BibleProvider');
   }
   return context;
-}; 
+} 
