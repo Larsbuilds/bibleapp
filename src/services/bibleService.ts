@@ -41,18 +41,40 @@ export const bibleService = {
       throw new Error('Failed to fetch chapter');
     }
     const data = await response.json();
+    
+    // Remove footnotes section if present
+    const text = data.passages[0].split('Footnotes')[0].trim();
+    
+    // Split into verses using the ESV verse number format [1], [2], etc.
+    const verseRegex = /\[(\d+)\]\s*(.*?)(?=\[\d+\]|$)/gs;
+    const verses: Verse[] = [];
+    let match;
+    
+    while ((match = verseRegex.exec(text)) !== null) {
+      const verseNumber = parseInt(match[1]);
+      const verseText = match[2].trim();
+      
+      // Skip empty verses and section headers
+      if (verseText && !verseText.includes('The ') && !verseText.includes('Feasts of')) {
+        verses.push({
+          id: `${book}-${chapter}-${verseNumber}`,
+          reference: `${book} ${chapter}:${verseNumber}`,
+          text: verseText,
+          book,
+          chapter,
+          verse: verseNumber,
+          translation: 'ESV'
+        });
+      }
+    }
+
+    // Sort verses by verse number
+    verses.sort((a, b) => a.verse - b.verse);
+    
     return {
       book,
       chapter,
-      verses: data.passages[0].split('\n').map((text: string, index: number) => ({
-        id: `${book}-${chapter}-${index + 1}`,
-        reference: `${book} ${chapter}:${index + 1}`,
-        text,
-        book,
-        chapter,
-        verse: index + 1,
-        translation: 'ESV'
-      }))
+      verses
     };
   },
 
